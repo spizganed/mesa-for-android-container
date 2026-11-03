@@ -416,6 +416,13 @@ fd_init_screen_caps(struct fd_screen *screen)
 
    u_init_pipe_screen_caps(&screen->base, 1);
 
+   /* MeowTTY: kgsl has no DRM node, so u_init_pipe_screen_caps finds no PRIME cap. The kgsl backend imports
+    * (kgsl_bo_from_dmabuf) and exports (kgsl_bo_dmabuf) dma-bufs: a compositor can then use the window pixmaps of
+    * the X server as textures.
+    */
+   if (!caps->dmabuf)
+      caps->dmabuf = 0x1 /* DRM_PRIME_CAP_IMPORT */ | 0x2 /* DRM_PRIME_CAP_EXPORT */;
+
    /* KGSL mappings are not CPU/GPU coherent on the Android kernels used by
     * the termux-va bridge.  Do not let upload managers keep persistent maps
     * while the bridge is active: they otherwise never call buffer_unmap after
