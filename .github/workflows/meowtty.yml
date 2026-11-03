@@ -1,0 +1,35 @@
+# MeowTTY test: Mesa with the kgsl dma-buf caps for Ubuntu 26.04 (arm64), the same build as the release of lfdevs.
+name: MeowTTY test build
+on:
+  push:
+    branches: [meowtty-dmabuf]
+  workflow_dispatch:
+jobs:
+  ubuntu-resolute:
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: ubuntu:resolute
+      options: --privileged --user root
+    steps:
+      - name: Install dependencies
+        run: |
+          sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          apt update
+          apt build-dep -y mesa
+          apt install -y git libxfixes-dev libarchive-dev
+      - uses: actions/checkout@v4
+      - name: Build Mesa
+        run: |
+          export LLVM_CONFIG=/usr/lib/llvm-21/bin/llvm-config
+          meson setup build/ --prefix=/usr -Dplatforms=x11,wayland -Dgallium-drivers=freedreno,zink,virgl,llvmpipe \
+            -Dgallium-va=enabled -Dtermux-va-bridge=enabled -Dtermux-va-wayland-shim=enabled -Dvideo-codecs=all \
+            -Dgallium-mediafoundation=disabled -Dvulkan-drivers=freedreno -Dvulkan-layers= -Degl=enabled -Dgles2=enabled \
+            -Dglvnd=enabled -Dglx=dri -Dlibunwind=disabled -Dintel-rt=disabled -Dmicrosoft-clc=disabled \
+            -Dvalgrind=disabled -Dgles1=disabled -Dfreedreno-kmds=kgsl -Dbuildtype=release
+          ninja -C build/
+          mkdir /tmp/inst && DESTDIR=/tmp/inst meson install -C build/
+          tar -zcf mesa-meowtty-ubuntu-resolute-arm64.tar.gz -C /tmp/inst .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mesa-meowtty-ubuntu-resolute-arm64
+          path: mesa-meowtty-ubuntu-resolute-arm64.tar.gz
